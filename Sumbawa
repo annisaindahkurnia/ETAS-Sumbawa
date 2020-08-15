@@ -1,0 +1,91 @@
+library("PtProcess")
+sumbawa<-read.csv("E:/sumbawa.csv",header=TRUE,sep=",")
+head(sumbawa)
+sumbawa$magnitude <- sumbawa$magnitude - 3.5 
+sumbawa$magnitude
+dmagn_mark <- function(x, data, params) {
+   if (params[7] > 0) {
+   lambda <- etas_gif(data, x[, "time"], params = params[1:5])
+   y <- dgamma(x[, "magnitude"], shape = 1 + sqrt(lambda) * params[7],
+                   rate = params[6], log = TRUE)
+     } else y <- dexp(x[, "magnitude"], rate = params[6], log = TRUE)
+     return(y)
+     }
+rmagn_mark <- function(ti, data, params) {
+   if (params[7]>0) {
+     lambda <- etas_gif(data, ti, params = params[1:5])
+     y <- rgamma(1, shape = 1 + sqrt(lambda) * params[7], rate = params[6])
+     } else y <- rexp(1, rate = params[6])
+     return(list(magnitude = y))
+     }
+TT <- c(0, 16801)
+params <- c(0.05, 3.1, 1.3, 0.02, 1.1, 1/mean(sumbawa$magnitude), 0)
+params
+x<- mpp(data = sumbawa, gif = etas_gif,
+        mark = list(dmagn_mark, rmagn_mark), params = params, TT = TT,
+        gmap = expression(params[1:5]), mmap = expression(params))
+expmap <- function(y, p) {
+  y$params[1:5] <- exp(p)
+  return(y)
+}
+initial <- log(params[1:5])
+initial
+z <- optim(initial, neglogLik, object = x, pmap = expmap,
+           control = list(trace = 1, maxit = 100))
+z
+initial <- z$par
+initial
+z <- nlm(neglogLik, initial, object = x, pmap = expmap,
+         print.level = 2, iterlim = 500, typsize = initial)
+z
+x0 <- expmap(x, z$estimate)
+allmap <- function(y, p) {
+  y$params <- exp(p)
+  return(y)
+}
+initial <- log(c(0.05, 3.1, 13, 0.02, 1.1, 1/mean(sumbawa$magnitude), 0.1))
+z <- optim(initial, neglogLik, object = x, pmap = allmap,
+           control = list(trace = 1, maxit = 200))
+z
+initial <- z$par
+initial
+z <- nlm(neglogLik, initial, object = x, pmap = allmap,
+         print.level = 2, iterlim = 500, typsize = initial)
+z
+x1 <- allmap(x, z$estimate)
+# Print Log-likelihood FULL dan NULL model#
+print(logLik(x0))
+print(logLik(x1))
+summary(x0)
+summary(x1)
+# Grafik Goodnes of Fit#
+plot(residuals(x1), xlab = "Kejadian", ylab = "Transformasi Waktu",
+     pty = "s")
+points(residuals(x0),lty=2,type='l',col="red")
+big <- list(id = c(2, 14, 33),
+            date = c("19Agt77", "29Jun93", "28Nov09"))
+big
+axis(3, at = big$id, labels = big$date, las = 2)
+
+abline(v = big$id, lty = 3, col = "blue")
+abline(a = 0, b = 1, lty = 3, col = "blue")
+#Plot Magnitudo VS Waktu#
+sumbawa<-read.table("E:/sumbawa.csv",header=TRUE, sep=",")
+Waktu<-sumbawa$time
+Magnitudo<-sumbawa$magnitude
+
+plot(Waktu, Magnitudo, type="h")
+
+big <- list(id = c(1669.280215, 7485.15706, 13481.00321),
+            date = c("19Agt77", "29Jun93", "28Nov09"))
+big
+axis(3, at = big$id, labels = big$date, las = 2)
+
+#Plot dari Full model #
+plot(x1, xlab = "Waktu", log=TRUE)
+big <- list(id = c(1669.280215, 7485.15706, 13481.00321
+),
+            date = c("19Agt77", "29Jun93", "28Nov09"))
+
+big
+axis(3, at = big$id, labels = big$date, las = 2)
